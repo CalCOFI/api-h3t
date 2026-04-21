@@ -16,14 +16,11 @@ h3t_load_validator <- function(
   if (!nzchar(py_path)) py_path <- Sys.getenv("RETICULATE_PYTHON", "")
   # explicitly pin the interpreter BEFORE any reticulate::import() call — the
   # RETICULATE_PYTHON env var alone is not always respected inside Docker if
-  # reticulate has already initialized a different interpreter.
+  # reticulate has already initialized a different interpreter. Use use_python()
+  # with the exact path (not use_virtualenv) so there's no `python` vs `python3`
+  # symlink mismatch warning when RETICULATE_PYTHON points at .../python3.
   if (nzchar(py_path) && file.exists(py_path)) {
-    venv_root <- dirname(dirname(py_path))   # .../venv/bin/python -> .../venv
-    if (file.exists(file.path(venv_root, "pyvenv.cfg"))) {
-      reticulate::use_virtualenv(venv_root, required = TRUE)
-    } else {
-      reticulate::use_python(py_path, required = TRUE)
-    }
+    reticulate::use_python(py_path, required = TRUE)
   }
   # locate sql_validate.py relative to this R file when possible; otherwise cwd
   if (is.null(py_file)) {
