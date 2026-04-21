@@ -8,11 +8,22 @@ suppressPackageStartupMessages(library(reticulate))
 .h3t_py <- new.env(parent = emptyenv())
 
 h3t_load_validator <- function(
-  py_path = Sys.getenv("SQLGLOT_PY", ""),
+  py_path = "",
   py_file = NULL
 ) {
-  if (nzchar(py_path)) {
-    reticulate::use_python(py_path, required = TRUE)
+  # honour either env var; SQLGLOT_PY wins if both are set
+  if (!nzchar(py_path)) py_path <- Sys.getenv("SQLGLOT_PY", "")
+  if (!nzchar(py_path)) py_path <- Sys.getenv("RETICULATE_PYTHON", "")
+  # explicitly pin the interpreter BEFORE any reticulate::import() call — the
+  # RETICULATE_PYTHON env var alone is not always respected inside Docker if
+  # reticulate has already initialized a different interpreter.
+  if (nzchar(py_path) && file.exists(py_path)) {
+    venv_root <- dirname(dirname(py_path))   # .../venv/bin/python -> .../venv
+    if (file.exists(file.path(venv_root, "pyvenv.cfg"))) {
+      reticulate::use_virtualenv(venv_root, required = TRUE)
+    } else {
+      reticulate::use_python(py_path, required = TRUE)
+    }
   }
   # locate sql_validate.py relative to this R file when possible; otherwise cwd
   if (is.null(py_file)) {

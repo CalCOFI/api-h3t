@@ -7,6 +7,7 @@ FROM rocker/r-ver:4.4.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 python3-pip python3-venv \
       libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev zlib1g-dev \
+      curl \
  && rm -rf /var/lib/apt/lists/*
 
 ENV RETICULATE_PYTHON=/opt/venv/bin/python3
@@ -28,5 +29,8 @@ COPY . /app
 
 ENV H3T_PORT=8889 H3T_HOST=0.0.0.0
 EXPOSE 8889
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=5 \
+  CMD curl -fsS http://localhost:8889/h3t/health || exit 1
 
 CMD ["Rscript", "/app/run-api.R"]
