@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.Rhistory
+.RData
+.Rproj.user/
+*.duckdb
+*.duckdb.wal
+.DS_Store

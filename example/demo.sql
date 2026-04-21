@@ -1,0 +1,38 @@
+-- Minimal h3t tile SELECT.
+--
+-- The server requires projections named `cell_id` (BIGINT H3 cell) and
+-- `value` (numeric). An optional `n` column is passed through if present.
+--
+-- The literal `{{res}}` is substituted by the server with the H3 resolution
+-- derived from the tile's zoom level, so one cached SQL string serves every
+-- zoom. Write `hex_h3res{{res}}` when your table has pre-computed H3 cells
+-- at resolutions 1..N as BIGINT columns — or compute on the fly:
+--     h3_latlng_to_cell(lat, lng, {{res}}) AS cell_id
+
+-- Example A: precomputed H3 columns (fastest).
+-- Replace `my_points` with your table and adjust the aggregate.
+-- SELECT hex_h3res{{res}} AS cell_id,
+--        COUNT(*)         AS value,
+--        COUNT(*)         AS n
+--   FROM my_points
+--  GROUP BY 1;
+
+-- Example B: compute H3 on the fly from lat/lng columns.
+-- SELECT h3_latlng_to_cell(lat, lng, {{res}}) AS cell_id,
+--        AVG(measurement)                      AS value,
+--        COUNT(*)                              AS n
+--   FROM my_points
+--  GROUP BY 1;
+
+-- Example C: hierarchical / recursive filter (taxa, admin geography, ...)
+-- WITH RECURSIVE descendants AS (
+--   SELECT id FROM taxa WHERE id = 158075
+--   UNION ALL
+--   SELECT t.id FROM taxa t JOIN descendants d ON t.parent_id = d.id
+-- )
+-- SELECT hex_h3res{{res}} AS cell_id,
+--        AVG(abundance)   AS value,
+--        COUNT(*)         AS n
+--   FROM observations
+--  WHERE taxon_id IN (SELECT id FROM descendants)
+--  GROUP BY 1;
