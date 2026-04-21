@@ -5,8 +5,9 @@ FROM rocker/r-ver:4.4.1
 #   libcurl/ssl/xml — httr2, duckdb, etc.
 #   zlib1g-dev     — sometimes pulled in by source builds
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 python3-pip python3-venv \
-      libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev zlib1g-dev \
+      python3 python3-dev python3-pip python3-venv \
+      libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev \
+      libpng-dev zlib1g-dev \
       curl \
  && rm -rf /var/lib/apt/lists/*
 
