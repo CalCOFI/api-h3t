@@ -53,6 +53,27 @@ STMT_TIMEOUT_MS   <- as.integer(Sys.getenv("H3T_STMT_TIMEOUT_MS", "3000"))
 
 DB_MTIME <- as.character(file.info(DUCKDB_PATH)$mtime)
 
+# --- CORS ----------------------------------------------------------------
+# Permissive CORS for this public, credential-less read-only API. Using "*"
+# also means Varnish can cache one copy per URL (no Vary: Origin fragmentation).
+# Optionally restrict via env var: H3T_CORS_ORIGIN="https://app.example.com".
+
+CORS_ORIGIN <- Sys.getenv("H3T_CORS_ORIGIN", "*")
+
+#* @filter cors
+function(req, res) {
+  res$setHeader("Access-Control-Allow-Origin",  CORS_ORIGIN)
+  res$setHeader("Access-Control-Allow-Methods", "GET, OPTIONS")
+  res$setHeader("Access-Control-Allow-Headers", "Content-Type, If-None-Match")
+  res$setHeader("Access-Control-Expose-Headers", "ETag, X-Calcofi-Release, X-Cache")
+  res$setHeader("Access-Control-Max-Age",       "600")
+  if (identical(toupper(req$REQUEST_METHOD %||% ""), "OPTIONS")) {
+    res$status <- 204L
+    return(list())
+  }
+  plumber::forward()
+}
+
 # --- helpers -------------------------------------------------------------
 
 decode_sql <- function(q) {
