@@ -19,6 +19,18 @@ zoom_to_res <- function(z) {
   as.integer(pmax(1L, pmin(10L, i)))
 }
 
+# --- H3 cell geometry ----------------------------------------------------
+
+# Average H3 cell edge length (in degrees), computed from the H3 recursion:
+# each resolution shrinks edge length by 1/sqrt(7). res 0 edge ≈ 1106.54 km;
+# 1 deg ≈ 111.32 km at the equator. Used to buffer the tile bbox so cells
+# whose centroids fall just outside the tile — but whose geometry straddles
+# it — are still returned; otherwise geojson-vt clips the partial hex out
+# of the neighbour and you see seams at tile boundaries.
+h3_edge_length_deg <- function(r) {
+  1106.54 / (sqrt(7))^as.integer(r) / 111.32
+}
+
 # --- tile bbox ------------------------------------------------------------
 
 tile_bbox <- function(z, x, y) {

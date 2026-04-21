@@ -132,8 +132,14 @@ function(z, x, y, req, res, q = NULL, res_h3 = NULL, release = "") {
   v <- validate_and_unwrap(res, q, res_h3 = query_res)
   if (is.list(v) && identical(v$error, "bad_request")) return(v)
 
+  # buffer bbox by ~1.5 H3 edge lengths so cells whose centroids are just
+  # outside the tile — but whose rendered hex overlaps it — are returned.
+  # Without this, geojson-vt clips those partial hexes and neighbouring
+  # tiles show a visible seam along the boundary.
+  buffer_deg <- h3_edge_length_deg(query_res) * 1.5
   wrapped <- wrap_tile_sql(v$normalized, bbox, has_n = v$has_n,
-                           max_rows = MAX_ROWS_PER_TILE)
+                           max_rows = MAX_ROWS_PER_TILE,
+                           buffer_deg = buffer_deg)
 
   rows <- tryCatch({
     setTimeLimit(elapsed = STMT_TIMEOUT_MS / 1000, transient = TRUE)
