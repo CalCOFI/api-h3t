@@ -51,7 +51,28 @@ STMT_TIMEOUT_MS   <- as.integer(Sys.getenv("H3T_STMT_TIMEOUT_MS", "3000"))
   con
 })
 
-DB_MTIME <- as.character(file.info(DUCKDB_PATH)$mtime)
+# epoch-seconds with microsecond precision so the ETag matches the
+# python service (api-h3t-py) byte-for-byte. format string `%.6f` matches
+# `f"{stat.st_mtime:.6f}"` on the python side.
+DB_MTIME <- sprintf("%.6f", as.numeric(file.info(DUCKDB_PATH)$mtime))
+
+# DB_NAME participates in the ETag so the cache key matches what the
+# python service computes in its multi-DB registry. The R service is
+# single-DB; "default" matches python's legacy fallback name.
+DB_NAME <- Sys.getenv("H3T_DB_NAME", "default")
+
+# stable ETag scheme shared with api-h3t-py: sha256 of a delimited string.
+# Replaces the previous digest::digest(list(...)) which serialized via R's
+# internal format and could not be reproduced cross-language.
+etag_tile <- function(q, z, x, y, res_h3, release) {
+  payload <- paste(DB_NAME, q, z, x, y, res_h3, release, DB_MTIME, sep = "|")
+  digest::digest(payload, algo = "sha256", serialize = FALSE)
+}
+
+etag_stats <- function(q, release) {
+  payload <- paste("stats", DB_NAME, q, release, DB_MTIME, sep = "|")
+  digest::digest(payload, algo = "sha256", serialize = FALSE)
+}
 
 # --- CORS ----------------------------------------------------------------
 # Permissive CORS for this public, credential-less read-only API. Using "*"
@@ -152,7 +173,7 @@ function(z, x, y, req, res, q = NULL, res_h3 = NULL, release = "") {
     return(list(error = "query_failed", reason = conditionMessage(rows)))
   }
 
-  etag <- digest::digest(list(q, z, x, y, query_res, release, DB_MTIME), algo = "sha256")
+  etag <- etag_tile(q, z, x, y, query_res, release)
   set_cache_headers(res, etag, release)
 
   # build h3j cells payload
@@ -189,7 +210,7 @@ function(req, res, q = NULL, release = "", res_h3 = 5L) {
     return(list(error = "query_failed", reason = conditionMessage(row)))
   }
 
-  etag <- digest::digest(list("stats", q, release, DB_MTIME), algo = "sha256")
+  etag <- etag_stats(q, release)
   set_cache_headers(res, etag, release)
 
   as.list(row[1, , drop = FALSE]) |>
