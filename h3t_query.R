@@ -3,7 +3,7 @@
 
 # --- zoom / resolution ----------------------------------------------------
 
-# mirrors int-app/app/global.R:175-181; keep in sync
+# mirrors db-viz-hex/app/global.R:175-181; keep in sync
 h3t_zoom_breaks <- local({
   min_res <- 1L; max_res <- 10L
   b <- seq(1, 13, length.out = (max_res - min_res + 1) + 1)

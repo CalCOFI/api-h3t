@@ -9,10 +9,10 @@ nothing is live yet. These are the one-time and ongoing commands for deploying
 Assumptions:
 - You SSH into the host that runs `docker compose` out of `~/Github/CalCOFI/server`
   (path on the server is likely `/share/github/CalCOFI/server`).
-- The CalCOFI org repos (`api-h3t`, `server`, `mapgl`, `int-app`) live at
+- The CalCOFI org repos (`api-h3t`, `server`, `mapgl`, `db-viz-hex`) live at
   `/share/github/...` on the server and are kept in sync via `git pull`.
 - A released DuckDB file is available locally on the server under
-  `/share/github/int-app/data/`. A symlink `calcofi_latest.duckdb` points at the
+  `/share/github/db-viz-hex/data/`. A symlink `calcofi_latest.duckdb` points at the
   current release (e.g. `calcofi_v2026.04.08.duckdb`).
 - DNS for `h3t.calcofi.io` already resolves to the host (Caddy auto-provisions
   TLS on first request).
@@ -24,7 +24,7 @@ Assumptions:
 The four repos are all published:
 - **CalCOFI/api-h3t** (public, MIT) — <https://github.com/CalCOFI/api-h3t>
 - **CalCOFI/server** — <https://github.com/CalCOFI/server> (commit adds h3t_api + varnish)
-- **CalCOFI/int-app** — <https://github.com/CalCOFI/int-app> (commit adds USE_H3T flag)
+- **CalCOFI/db-viz-hex** — <https://github.com/CalCOFI/db-viz-hex> (commit adds USE_H3T flag)
 - **bbest/mapgl** `feat/add-h3t-source` branch → upstream PR
   <https://github.com/walkerke/mapgl/pull/199>
 
@@ -34,7 +34,7 @@ The four repos are all published:
 ssh <server-host>
 
 # pull the four repos that changed
-for repo in server api-h3t int-app ; do
+for repo in server api-h3t db-viz-hex ; do
   git -C /share/github/$repo pull --ff-only
 done
 git -C /share/github/bbest/mapgl pull --ff-only   # or wherever the fork lives
@@ -42,23 +42,23 @@ git -C /share/github/bbest/mapgl pull --ff-only   # or wherever the fork lives
 
 ## Step 3 — on the server: stage the released DuckDB
 
-The `h3t_api` container mounts `/share/github/int-app/data:/data:ro` and opens
+The `h3t_api` container mounts `/share/github/db-viz-hex/data:/data:ro` and opens
 `/data/calcofi_latest.duckdb`. Point the symlink at the current release:
 
 ```bash
 # one-off: ensure the data dir exists
-# sudo mkdir -p /share/github/int-app/data
+# sudo mkdir -p /share/github/db-viz-hex/data
 
 # copy (or hard-link) the latest release into place
-# sudo cp /share/github/CalCOFI/int-app/data/calcofi_v2026.04.08.duckdb \
-#         /share/github/int-app/data/
+# sudo cp /share/github/CalCOFI/db-viz-hex/data/calcofi_v2026.04.08.duckdb \
+#         /share/github/db-viz-hex/data/
 
 # atomically flip the "latest" pointer
-#sudo ln -sfn calcofi_v2026.04.08.duckdb /share/github/int-app/data/calcofi_latest.duckdb
-#bebest_ucsd_edu@shiny-server:/share/github/int-app/data$
-cd /share/github/int-app/data 
+#sudo ln -sfn calcofi_v2026.04.08.duckdb /share/github/db-viz-hex/data/calcofi_latest.duckdb
+#bebest_ucsd_edu@shiny-server:/share/github/db-viz-hex/data$
+cd /share/github/db-viz-hex/data 
 sudo -u bebest ln -s calcofi_v2026.04.08.duckdb calcofi_latest.duckdb
-ls -l /share/github/int-app/data/
+ls -l /share/github/db-viz-hex/data/
 ```
 
 ## Step 4 — on the server: build & launch the new containers
@@ -116,9 +116,9 @@ curl -sI "https://h3t.calcofi.io/h3t/4/3/6.h3t?q=$Q&release=v2026.04.08" \
 # on the first hit expect: X-Cache: MISS; on a repeat: X-Cache: HIT
 ```
 
-## Step 7 — deploy the int-app with the flag flipped
+## Step 7 — deploy the db-viz-hex with the flag flipped
 
-If the int-app runs under Shiny Server (the `rstudio:3838` container), drop an
+If the db-viz-hex runs under Shiny Server (the `rstudio:3838` container), drop an
 environment file for the app and restart:
 
 ```bash
@@ -127,18 +127,18 @@ sudo echo 'H3T_USE=TRUE'                                 | sudo tee -a /etc/R/Re
 sudo echo 'H3T_BASE_URL=https://h3t.calcofi.io/h3t'      | sudo tee -a /etc/R/Renviron.site
 sudo echo 'H3T_RELEASE=v2026.04.08'                      | sudo tee -a /etc/R/Renviron.site
 
-# option B: per-app Renviron inside the int-app directory (preferred — scoped)
-# cat <<EOF | sudo tee /srv/shiny-server/int-app/.Renviron
+# option B: per-app Renviron inside the db-viz-hex directory (preferred — scoped)
+# cat <<EOF | sudo tee /srv/shiny-server/db-viz-hex/.Renviron
 # H3T_USE=TRUE
 # H3T_BASE_URL=https://h3t.calcofi.io/h3t
 # H3T_RELEASE=v2026.04.08
 # EOF
 
 # force a fresh R process for the app (Shiny Server auto-restarts on file touch)
-sudo touch /srv/shiny-server/int-app/restart.txt
+sudo touch /srv/shiny-server/db-viz-hex/restart.txt
 ```
 
-Visit `https://app.calcofi.io` (or wherever the int-app is routed) and watch
+Visit `https://app.calcofi.io` (or wherever the db-viz-hex is routed) and watch
 the browser network panel — you should see `h3tiles://.../{z}/{x}/{y}.h3t`
 requests firing on pan/zoom.
 
@@ -150,7 +150,7 @@ Every time `release_database.qmd` produces a new release:
 
 1. Update the symlink:
    ```bash
-   sudo ln -sfn calcofi_v2026.MM.DD.duckdb /share/github/int-app/data/calcofi_latest.duckdb
+   sudo ln -sfn calcofi_v2026.MM.DD.duckdb /share/github/db-viz-hex/data/calcofi_latest.duckdb
    ```
 2. Bounce the API so it reopens the DuckDB file (it holds the handle):
    ```bash
@@ -161,7 +161,7 @@ Every time `release_database.qmd` produces a new release:
    ```bash
    docker compose exec varnish varnishadm ban 'req.url ~ "^/h3t/"'
    ```
-4. Update the `H3T_RELEASE` env var in the int-app's `.Renviron` and touch
+4. Update the `H3T_RELEASE` env var in the db-viz-hex's `.Renviron` and touch
    `restart.txt`.
 
 ---

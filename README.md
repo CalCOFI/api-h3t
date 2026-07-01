@@ -151,7 +151,7 @@ maplibre(center = c(-119, 34), zoom = 5) |>
 
 A reference end-to-end Shiny integration — legend, zoom-aware resolution,
 swapping filters via proxy — lives in the
-[CalCOFI/int-app](https://github.com/CalCOFI/int-app) repo under the
+[CalCOFI/db-viz-hex](https://github.com/CalCOFI/db-viz-hex) repo under the
 `USE_H3T=TRUE` code path.
 
 ## Security model
